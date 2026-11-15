@@ -252,10 +252,7 @@
                     
                     <div class="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-r text-sm text-blue-800 flex items-start gap-2">
                         <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        <div>
-                            <strong>Exporting / Hosting Externally?</strong> Remember to paste your Gemini API key into the <code>apiKey</code> variable in the source code (near the bottom of the file) so this graph generator continues to work outside of this environment!
                         </div>
-                    </div>
                 </div>
                 
                 <div class="flex gap-3 mb-6">
@@ -287,9 +284,7 @@
                     <p class="text-sm text-[var(--text-muted)] mb-3">Ask questions about the NASA Combustion experiments, oxygen ranges, or fire safety implications. The AI answers using the data loaded in the app.</p>
                     <div class="bg-purple-50 border-l-4 border-purple-500 p-3 rounded-r text-sm text-purple-800 flex items-start gap-2">
                         <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        <div>
-                            <strong>API Key Required:</strong> This uses the same <code>apiKey</code> variable as the Graph Generator. Ensure it is populated in the source code to enable chat.
-                        </div>
+
                     </div>
                 </div>
                 
@@ -698,7 +693,7 @@ Keep answers concise, accurate, and directly address the user's question. If the
         // =======================================================================
         // 🔑 GEMINI API KEY USED FOR BOTH GRAPH GENERATION AND CHAT RAG
         // =======================================================================
-        const apiKey = ""; 
+        const apiKey = "AQ.Ab8RN6JYBF976nRAbLZzABeGzPfPOl_IlB6s1G7Kmh9Ve4ldUQ"; 
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
         try {
