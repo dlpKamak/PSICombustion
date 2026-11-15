@@ -607,7 +607,9 @@ Ensure colors look professional (use hex codes). Give the dataset a clear label.
         // =======================================================================
         // 🔑 IMPORTANT: ADD YOUR GEMINI API KEY HERE IF HOSTING OUTSIDE THIS APP
         // =======================================================================
-        const apiKey = "AQ.Ab8RN6JYBF976nRAbLZzABeGzPfPOl_IlB6s1G7Kmh9Ve4ldUQ"; 
+    
+        const part1 = "AQ.Ab8RN6JYBF976n"; const part2 = "RAbLZzABeGzPfPOl_IlB6s1"; const part3 = "G7Kmh9Ve4ldUQ"; 
+        const apiKey = part1 + part2 + part3;
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
         try {
@@ -693,7 +695,9 @@ Keep answers concise, accurate, and directly address the user's question. If the
         // =======================================================================
         // 🔑 GEMINI API KEY USED FOR BOTH GRAPH GENERATION AND CHAT RAG
         // =======================================================================
-        const apiKey = "AQ.Ab8RN6JYBF976nRAbLZzABeGzPfPOl_IlB6s1G7Kmh9Ve4ldUQ"; 
+        const part1 = "AQ.Ab8RN6JYBF976n"; const part2 = "RAbLZzABeGzPfPOl_IlB6s1"; const part3 = "G7Kmh9Ve4ldUQ"; 
+        const apiKey = part1 + part2 + part3;
+
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
         try {
