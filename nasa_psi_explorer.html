@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NASA PSI Fire Safety Explorer</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@400;700&display=swap');
+    
+    :root {
+        --bg-color: #f8fafc;
+        --panel-bg: #ffffff;
+        --border-color: #e2e8f0;
+        --text-main: #0f172a;
+        --text-muted: #64748b;
+        --brand-blue: #2563eb;
+        --brand-blue-hover: #1d4ed8;
+        --brand-light: #eff6ff;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --border-color: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --brand-blue: #3b82f6;
+            --brand-blue-hover: #60a5fa;
+            --brand-light: #172554;
+        }
+    }
+
+    body {
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        font-family: 'Inter', sans-serif;
+    }
+
+    .font-serif-title { font-family: 'Merriweather', serif; }
+
+    /* Custom range slider styling */
+    input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--brand-blue); cursor: pointer; margin-top: -6px; }
+    input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: var(--border-color); border-radius: 2px; }
+
+    .tab-btn { white-space: nowrap; }
+    .tab-btn[aria-pressed="true"] { border-bottom: 2px solid var(--brand-blue); color: var(--brand-blue); font-weight: 600; }
+
+    .bubble:hover { stroke: var(--text-main); stroke-width: 2px; cursor: pointer; }
+    
+    .tooltip {
+        position: absolute; background: var(--panel-bg); border: 1px solid var(--border-color);
+        padding: 8px 12px; border-radius: 6px; font-size: 12px; pointer-events: none;
+        opacity: 0; transition: opacity 0.2s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        z-index: 50; max-width: 250px;
+    }
+
+    .badge-high { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .badge-medium { background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }
+    .badge-low { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+    
+    .kpi { background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: center;}
+    .kpi b { font-size: 24px; font-weight: 700; display: block; color: var(--brand-blue); }
+    .kpi span { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .loader {
+        border: 3px solid var(--border-color); border-top: 3px solid var(--brand-blue);
+        border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    .o2s { width: 100%; height: auto; display: block; }
+    .o2s text { fill: var(--text-main); font-size: 12px; }
+    .o2s .m { fill: var(--text-muted); font-size: 11px; }
+    .o2s .ax { stroke: var(--border-color); }
+</style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+<header class="bg-[var(--panel-bg)] border-b border-[var(--border-color)] py-4 px-6 shadow-sm sticky top-0 z-30">
+    <div class="max-w-[1400px] mx-auto flex flex-wrap gap-4 items-center justify-between">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-blue-300 shadow-lg flex items-center justify-center text-white font-bold text-xl">
+                NASA
+            </div>
+            <div>
+                <h1 class="font-serif-title font-bold text-xl tracking-tight">Flame in Freefall: PSI Database Explorer</h1>
+                <p class="text-[var(--text-muted)] text-sm">Synchronized with Physical Sciences Informatics (PSI)</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3 text-xs bg-[var(--bg-color)] border border-[var(--border-color)] rounded-lg p-2 px-3">
+            <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Connected</div>
+            <span class="text-[var(--text-muted)] border-l border-[var(--border-color)] pl-3">24 Investigations Loaded</span>
+        </div>
+    </div>
+</header>
+
+<main class="flex-grow max-w-[1400px] mx-auto w-full p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    
+    <!-- Sidebar: Filters & Scenario -->
+    <aside class="lg:col-span-3 flex flex-col gap-6">
+        
+        <!-- Scenario Engine -->
+        <div class="bg-[var(--panel-bg)] rounded-xl border border-[var(--border-color)] shadow-sm p-5">
+            <h2 class="font-semibold text-lg mb-4">Mission Scenario</h2>
+            <div class="mb-4">
+                <label class="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">1. Select Environment</label>
+                <div class="flex flex-wrap gap-2" id="env-presets">
+                    <button class="px-3 py-1.5 text-xs rounded-full border border-[var(--border-color)] hover:bg-[var(--brand-light)] transition-colors" onclick="setPreset('Lunar')">Lunar Habitat</button>
+                    <button class="px-3 py-1.5 text-xs rounded-full border border-[var(--border-color)] hover:bg-[var(--brand-light)] transition-colors" onclick="setPreset('Mars')">Mars Habitat</button>
+                    <button class="px-3 py-1.5 text-xs rounded-full border border-[var(--border-color)] hover:bg-[var(--brand-light)] transition-colors" onclick="setPreset('Spacecraft')">Spacecraft</button>
+                </div>
+            </div>
+            <div class="mb-2">
+                <label class="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">2. Scoring Weights</label>
+                <div id="sliders-container" class="flex flex-col gap-2"></div>
+            </div>
+        </div>
+
+        <!-- Database Filters -->
+        <div class="bg-[var(--panel-bg)] rounded-xl border border-[var(--border-color)] shadow-sm p-5">
+            <h2 class="font-semibold text-lg mb-4">PSI Record Filters</h2>
+            <div class="flex flex-col gap-3 text-sm text-[var(--text-main)]">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chkFlight" class="rounded text-blue-500 w-4 h-4" checked onchange="renderAll()"> 
+                    Microgravity Flight Investigations (19)
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chkGround" class="rounded text-blue-500 w-4 h-4" checked onchange="renderAll()"> 
+                    Ground / CFD PSI Grants (5)
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chkCsvOnly" class="rounded text-blue-500 w-4 h-4" onchange="renderAll()"> 
+                    Only records with attached CSV tables
+                </label>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="lg:col-span-9 flex flex-col gap-4 overflow-hidden">
+        
+        <!-- Navigation Tabs -->
+        <div class="flex border-b border-[var(--border-color)] gap-4 overflow-x-auto" role="tablist">
+            <button class="tab-btn pb-2 text-sm text-[var(--text-muted)] transition-colors" aria-pressed="true" onclick="switchTab('scatter')">Intelligent Ranking</button>
+            <button class="tab-btn pb-2 text-sm text-[var(--text-muted)] transition-colors" aria-pressed="false" onclick="switchTab('table')">Ranked Records</button>
+            <button class="tab-btn pb-2 text-sm text-[var(--text-muted)] transition-colors" aria-pressed="false" onclick="switchTab('compare')">Compare</button>
+            <button class="tab-btn pb-2 text-sm text-[var(--text-muted)] transition-colors" aria-pressed="false" onclick="switchTab('o2map')">Oxygen Map</button>
+            <button class="tab-btn pb-2 text-sm text-[var(--text-muted)] transition-colors" aria-pressed="false" onclick="switchTab('db')">Database Overview</button>
+            <button class="tab-btn pb-2 text-sm text-blue-600 font-semibold transition-colors flex items-center gap-1" aria-pressed="false" onclick="switchTab('llm')">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                LLM Graph Generator
+            </button>
+            <button class="tab-btn pb-2 text-sm text-purple-600 font-semibold transition-colors flex items-center gap-1" aria-pressed="false" onclick="switchTab('chat')">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                AI Chat Assistant
+            </button>
+        </div>
+
+        <!-- TAB 1: Intelligent Ranking (Scatter) -->
+        <div id="tab-scatter" class="tab-content flex-grow">
+            <div class="bg-[var(--panel-bg)] rounded-xl border border-[var(--border-color)] shadow-sm p-5 h-full min-h-[500px] flex flex-col">
+                <div class="mb-4">
+                    <h2 class="font-semibold text-lg">Topics and Relevance Clusters</h2>
+                    <p class="text-sm text-[var(--text-muted)]">Bubble position is based on Oxygen Limit (X) and Computed Relevance (Y). Size represents relative data volume.</p>
+                </div>
+                <div class="relative flex-grow bg-[var(--bg-color)] rounded-lg border border-[var(--border-color)] p-4 flex items-center justify-center overflow-hidden" id="scatter-container">
+                    <!-- SVG Scatter Plot Injected Here -->
+                </div>
+                <div class="mt-4 flex flex-wrap gap-4 text-xs text-[var(--text-muted)] justify-center">
+                    <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500 opacity-70"></span> Solid Flammability</div>
+                    <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-orange-500 opacity-70"></span> Gaseous/Droplet</div>
+                    <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-purple-500 opacity-70"></span> Detection/Aerosol</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: Ranked Records -->
+        <div id="tab-table" class="tab-content hidden flex-grow">
+            <div class="bg-[var(--panel-bg)] rounded-xl border border-[var(--border-color)] shadow-sm overflow-hidden h-full">
+                <div class="p-5 border-b border-[var(--border-color)] bg-[var(--bg-color)]">
+                    <h2 class="font-semibold text-lg">Filtered & Ranked PSI Records</h2>
+                </div>
+                <div class="overflow-x-auto p-0">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs uppercase bg-[var(--bg-color)] text-[var(--text-muted)] border-b border-[var(--border-color)]">
+                            <tr>
+                                <th class="px-6 py-4">Accession / Investigation</th>
+                                <th class="px-6 py-4">Subject Focus</th>
+                                <th class="px-6 py-4">Oxygen Range</th>
+                                <th class="px-6 py-4 text-right">Relevance</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body" class="divide-y divide-[var(--border-color)]">
+                            <!-- Rows injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: Compare -->
+        <div id="tab-compare" class="tab-content hidden flex-grow">
+            <div class="bg-[var(--panel-bg)] rounded-xl border border-[var(--border-color)] shadow-sm p-5 overflow-x-auto">
+                <h2 class="font-semibold text-lg mb-4">Compare Investigations</h2>
+                <div id="compare-selector" class="flex flex-wrap gap-2 mb-6"></div>
+                <div id="compare-table-container" class="w-full"></div>
+            </div>
+        </div>
+
+        <!-- TAB 4: Oxygen Map -->
+        <div id="tab-o2map" class="tab-content hidden flex-grow">
+            <div class="bg-[var(--panel-bg)] rounded-xl border border-[var(--border-color)] shadow-sm p-5">
+                <h2 class="font-semibold text-lg mb-4">PSI Oxygen Coverage vs. Crewed Atmospheres</h2>
+                <div id="o2-container" class="w-full overflow-x-auto"></div>
+            </div>
+        </div>
+
+        <!-- TAB 5: Database Overview -->
+        <div id="tab-db" class="tab-content hidden flex-grow">
+            <div class="bg-[var(--panel-bg)] rounded-xl border border-[var(--border-color)] shadow-sm p-5">
+                <h2 class="font-semibold text-lg mb-4">Synchronized PSI Experimental Tables & Study Packages</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="kpi"><b>24</b><span>PSI Combustion Records</span></div>
+                    <div class="kpi"><b>19 / 5</b><span>Flight vs. Ground Grants</span></div>
+                    <div class="kpi"><b>546</b><span>Indexed CSV Test Rows</span></div>
+                    <div class="kpi"><b>12.25 GB</b><span>PSI-98 Saffire-I Files</span></div>
+                </div>
+                <div class="overflow-x-auto border border-[var(--border-color)] rounded-lg">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs uppercase bg-[var(--bg-color)] text-[var(--text-muted)] border-b border-[var(--border-color)]">
+                            <tr><th>Accession</th><th>Investigation</th><th>PSI Experimental Table</th><th>Row Count</th></tr>
+                        </thead>
+                        <tbody class="divide-y divide-[var(--border-color)]" id="db-overview-table"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 6: LLM Graph Generator -->
+        <div id="tab-llm" class="tab-content hidden flex-grow">
+            <div class="bg-[var(--panel-bg)] rounded-xl border border-[var(--border-color)] shadow-sm p-5 flex flex-col h-full">
+                <div class="mb-4 border-b border-[var(--border-color)] pb-4">
+                    <h2 class="font-semibold text-lg flex items-center gap-2">
+                        <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        LLM-Powered Data Visualization
+                    </h2>
+                    <p class="text-sm text-[var(--text-muted)] mb-4">Ask the Gemini AI to generate custom charts based on the loaded PSI Combustion Database context.</p>
+                </div>
+                
+                <div class="flex gap-3 mb-6">
+                    <input type="text" id="llm-prompt" class="flex-grow bg-[var(--bg-color)] border border-[var(--border-color)] rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g., Plot a bar chart comparing the maximum oxygen levels tested across solid flammability experiments." value="Show a bar chart of the maximum oxygen percentage tested for each flight investigation.">
+                    <button onclick="generateLLMGraph()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg text-sm transition-colors shadow-sm whitespace-nowrap" id="llm-btn">
+                        Generate Graph
+                    </button>
+                </div>
+
+                <div class="relative flex-grow bg-[var(--bg-color)] rounded-lg border border-[var(--border-color)] p-4 flex flex-col items-center justify-center min-h-[400px]">
+                    <div id="llm-loading" class="hidden flex-col items-center gap-3">
+                        <div class="loader"></div>
+                        <span class="text-sm text-[var(--text-muted)]">AI is analyzing database context and writing Chart.js configuration...</span>
+                    </div>
+                    <canvas id="llm-canvas" class="w-full h-full max-h-[400px]"></canvas>
+                    <div id="llm-error" class="hidden text-red-500 text-sm mt-4 p-3 bg-red-50 border border-red-200 rounded text-center w-full max-w-lg"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 7: AI Chat Assistant -->
+        <div id="tab-chat" class="tab-content hidden flex-grow">
+            <div class="bg-[var(--panel-bg)] rounded-xl border border-[var(--border-color)] shadow-sm p-5 flex flex-col h-full min-h-[550px]">
+                <div class="mb-4 border-b border-[var(--border-color)] pb-4">
+                    <h2 class="font-semibold text-lg flex items-center gap-2">
+                        <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                        PSI Database Chat Assistant
+                    </h2>
+                    <p class="text-sm text-[var(--text-muted)] mb-3">Ask questions about the NASA Combustion experiments, oxygen ranges, or fire safety implications. The AI answers using the data loaded in the app.</p>
+                </div>
+                
+                <div id="chat-messages" class="flex-grow bg-[var(--bg-color)] border border-[var(--border-color)] rounded-lg p-4 mb-4 overflow-y-auto flex flex-col gap-4 h-[320px]">
+                    <div class="self-start bg-[var(--panel-bg)] border border-[var(--border-color)] text-[var(--text-main)] rounded-2xl rounded-tl-none py-2 px-4 text-sm max-w-[85%] shadow-sm">
+                        Hello! I have access to the 24 loaded NASA PSI Combustion records. What would you like to know about microgravity fire safety, specific fuels, or oxygen limits?
+                    </div>
+                </div>
+                
+                <div class="flex gap-2 relative mt-auto">
+                    <input type="text" id="chat-input" class="flex-grow bg-[var(--bg-color)] border border-[var(--border-color)] rounded-full py-3 pl-4 pr-14 text-sm focus:ring-2 focus:ring-purple-500 outline-none shadow-sm" placeholder="Ask about specific experiments, fuels, or oxygen levels..." onkeypress="if(event.key === 'Enter') sendChatMessage()">
+                    <button onclick="sendChatMessage()" id="chat-send-btn" class="absolute right-1.5 top-1.5 bottom-1.5 bg-purple-600 hover:bg-purple-700 text-white w-9 h-9 rounded-full flex items-center justify-center transition-colors shadow-sm disabled:opacity-50">
+                        <svg class="w-4 h-4 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<div id="tooltip" class="tooltip text-[var(--text-main)]"></div>
+
+<script>
+    const DIMS = [
+        { id: "P", label: "Material Flammability" },
+        { id: "O", label: "High-Oxygen Atmospheres" },
+        { id: "D", label: "Smoke/Dust Detection" },
+        { id: "S", label: "Suppression Mechanics" },
+        { id: "G", label: "Partial-Gravity Equivalency" },
+        { id: "M", label: "Predictive CFD Modeling" }
+    ];
+
+    const PRESETS = {
+        "Lunar": { P: 5, O: 5, D: 3, S: 3, G: 5, M: 4 },
+        "Mars": { P: 4, O: 3, D: 5, S: 4, G: 5, M: 4 },
+        "Spacecraft": { P: 5, O: 2, D: 5, S: 5, G: 1, M: 3 }
+    };
+
+    let weights = { P: 3, O: 3, D: 3, S: 3, G: 3, M: 3 };
+    let selectedForCompare = ["PSI-159", "PSI-25", "PSI-98"];
+    let llmChartInstance = null;
+
+    // Comprehensive PSI Database
+    const PSI_DB = [
+        { acc: "PSI-159", acronym: "ACME CFI-G", type: "Flight", category: "Gaseous/Droplet", title: "Cool Flames Investigation with Gases", o2Range: "Up to 85%", o2Min: 21, o2Max: 85, dataVol: 40, csv: null, scores: { P: 3, O: 5, D: 1, S: 2, G: 2, M: 5 } },
+        { acc: "PSI-25", acronym: "BASS-II", type: "Flight", category: "Solid Flammability", title: "Burning and Suppression of Solids - II", o2Range: "13.6%–22.2%", o2Min: 13.6, o2Max: 22.2, dataVol: 80, csv: "PSI-25_Experimental table_BASS-II.csv (129 rows)", scores: { P: 5, O: 4, D: 1, S: 3, G: 3, M: 4 } },
+        { acc: "PSI-98", acronym: "Saffire-I", type: "Flight", category: "Solid Flammability", title: "Spacecraft Fire Safety Experiment-I", o2Range: "21.5%–21.7%", o2Min: 21.5, o2Max: 21.7, dataVol: 100, csv: "PSI-98_Experimental table_SAFFIRE-1.csv (74 files)", scores: { P: 5, O: 2, D: 2, S: 2, G: 2, M: 3 } },
+        { acc: "PSI-99", acronym: "Saffire-II", type: "Flight", category: "Solid Flammability", title: "Spacecraft Fire Safety Experiment-II", o2Range: "21.9%–22.1%", o2Min: 21.9, o2Max: 22.1, dataVol: 70, csv: null, scores: { P: 5, O: 2, D: 2, S: 2, G: 2, M: 3 } },
+        { acc: "PSI-100", acronym: "Saffire-III", type: "Flight", category: "Solid Flammability", title: "Spacecraft Fire Safety Experiment-III", o2Range: "21.0%–21.2%", o2Min: 21.0, o2Max: 21.2, dataVol: 65, csv: null, scores: { P: 5, O: 2, D: 2, S: 2, G: 2, M: 3 } },
+        { acc: "PSI-20", acronym: "ACME BRE", type: "Flight", category: "Gaseous/Droplet", title: "Burning Rate Emulator", o2Range: "21%–40%", o2Min: 21, o2Max: 40, dataVol: 35, csv: "PSI-20_Experimental table_ACME BRE.csv (18 rows)", scores: { P: 4, O: 5, D: 1, S: 2, G: 2, M: 5 } },
+        { acc: "PSI-102", acronym: "SAME", type: "Flight", category: "Detection/Aerosol", title: "Smoke and Aerosol Measurement Experiment", o2Range: "21%", o2Min: 21, o2Max: 21, dataVol: 50, csv: null, scores: { P: 1, O: 1, D: 5, S: 1, G: 1, M: 3 } },
+        { acc: "PSI-101", acronym: "SAME-R", type: "Flight", category: "Detection/Aerosol", title: "Smoke Aerosol Measurement Experiment-Reflight", o2Range: "21%", o2Min: 21, o2Max: 21, dataVol: 45, csv: null, scores: { P: 1, O: 1, D: 5, S: 1, G: 1, M: 3 } },
+        { acc: "PSI-47", acronym: "DAFT / DAFT-2", type: "Flight", category: "Detection/Aerosol", title: "Dust and Aerosol Measurement Feasibility Test", o2Range: "21%", o2Min: 21, o2Max: 21, dataVol: 25, csv: null, scores: { P: 1, O: 1, D: 4, S: 1, G: 4, M: 2 } },
+        { acc: "PSI-69", acronym: "FLEX", type: "Flight", category: "Gaseous/Droplet", title: "Flame Extinguishment Experiment", o2Range: "7%–30%", o2Min: 7, o2Max: 30, dataVol: 65, csv: null, scores: { P: 2, O: 3, D: 1, S: 5, G: 1, M: 4 } },
+        { acc: "PSI-68", acronym: "FLEX-2", type: "Flight", category: "Gaseous/Droplet", title: "Flame Extinguishment Experiment-2", o2Range: "10%–40%", o2Min: 10, o2Max: 40, dataVol: 75, csv: null, scores: { P: 2, O: 4, D: 1, S: 5, G: 1, M: 4 } },
+        { acc: "PSI-10", acronym: "Flame Design", type: "Flight", category: "Gaseous/Droplet", title: "Advanced Combustion via Microgravity Experiments", o2Range: "19.8%–85.0%", o2Min: 19.8, o2Max: 85, dataVol: 85, csv: "PSI-10_Experimental table_Flame Design (327 rows)", scores: { P: 3, O: 5, D: 2, S: 2, G: 1, M: 4 } },
+        { acc: "PSI-22", acronym: "E-FIELD", type: "Flight", category: "Gaseous/Droplet", title: "Electric-Field Effects on Laminar Diffusion Flames", o2Range: "21%", o2Min: 21, o2Max: 21, dataVol: 30, csv: "PSI-22_Experimental table_ACME E-FIELD Flames.csv (32 rows)", scores: { P: 2, O: 2, D: 1, S: 1, G: 5, M: 4 } },
+        { acc: "PSI-21", acronym: "CLD Flame", type: "Flight", category: "Gaseous/Droplet", title: "Coflow Laminar Diffusion Flame", o2Range: "21%", o2Min: 21, o2Max: 21, dataVol: 35, csv: "PSI-21_Experimental table_CLD Flame.csv (32 rows)", scores: { P: 2, O: 2, D: 2, S: 2, G: 1, M: 5 } },
+        { acc: "PSI-23", acronym: "s-Flame", type: "Flight", category: "Gaseous/Droplet", title: "Structure and Response of Spherical Diffusion Flames", o2Range: "21%–30%", o2Min: 21, o2Max: 30, dataVol: 20, csv: "PSI-23_Experimental table_ACME s-Flame.csv (18 rows)", scores: { P: 3, O: 4, D: 1, S: 2, G: 1, M: 5 } },
+        { acc: "PSI-26", acronym: "BASS", type: "Flight", category: "Solid Flammability", title: "Burning and Suppression of Solids", o2Range: "16%–21%", o2Min: 16, o2Max: 21, dataVol: 50, csv: null, scores: { P: 5, O: 3, D: 1, S: 4, G: 1, M: 4 } },
+        { acc: "PSI-39", acronym: "CFI", type: "Flight", category: "Gaseous/Droplet", title: "Cool Flames Investigation", o2Range: "Varied", o2Min: 21, o2Max: 21, dataVol: 30, csv: null, scores: { P: 2, O: 2, D: 1, S: 2, G: 1, M: 4 } },
+        { acc: "PSI-106", acronym: "SLICE", type: "Flight", category: "Gaseous/Droplet", title: "Structure and Liftoff In Combustion Experiment", o2Range: "21%", o2Min: 21, o2Max: 21, dataVol: 25, csv: null, scores: { P: 2, O: 2, D: 1, S: 2, G: 1, M: 4 } },
+        { acc: "PSI-107", acronym: "SPICE", type: "Flight", category: "Gaseous/Droplet", title: "Smoke Point In Co-flow Experiment", o2Range: "21%", o2Min: 21, o2Max: 21, dataVol: 45, csv: null, scores: { P: 2, O: 2, D: 3, S: 1, G: 1, M: 4 } },
+        { acc: "PSI-60", acronym: "PSI-60 (SPICE Soot CFD)", type: "Ground", category: "Gaseous/Droplet", title: "Computational and Experimental Analysis of SPICE Data Sets", o2Range: "21%", o2Min: 21, o2Max: 21, dataVol: 15, csv: null, scores: { P: 2, O: 1, D: 2, S: 1, G: 1, M: 5 } },
+        { acc: "PSI-62", acronym: "PSI-62 (BASS FGM)", type: "Ground", category: "Solid Flammability", title: "Concurrent Flame Spread Modeling using FGM", o2Range: "13.6%–22.2%", o2Min: 13.6, o2Max: 22.2, dataVol: 20, csv: null, scores: { P: 4, O: 3, D: 1, S: 2, G: 2, M: 5 } },
+        { acc: "PSI-115", acronym: "PSI-115 (SAME DNS)", type: "Ground", category: "Detection/Aerosol", title: "Simulation of Smoke Generation in Micro-Gravity", o2Range: "21%", o2Min: 21, o2Max: 21, dataVol: 10, csv: null, scores: { P: 1, O: 1, D: 4, S: 1, G: 2, M: 5 } },
+        { acc: "PSI-117", acronym: "PSI-117 (Cool Flame CFD)", type: "Ground", category: "Gaseous/Droplet", title: "External Thermo-Convective Perturbation on Cool Flame Dynamics", o2Range: "10%–30%", o2Min: 10, o2Max: 30, dataVol: 15, csv: null, scores: { P: 2, O: 2, D: 1, S: 3, G: 2, M: 5 } },
+        { acc: "PSI-142", acronym: "PSI-142 (Extinction)", type: "Ground", category: "Solid Flammability", title: "Quantitative Studies of Cool Flame Transitions", o2Range: "10%–30%", o2Min: 10, o2Max: 30, dataVol: 15, csv: null, scores: { P: 3, O: 3, D: 1, S: 3, G: 1, M: 5 } }
+    ];
+
+    function init() {
+        renderSliders();
+        setPreset('Lunar');
+        renderDBOverview();
+        renderO2Map();
+    }
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.setAttribute('aria-pressed', 'false'));
+        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.add('hidden'));
+        event.currentTarget.setAttribute('aria-pressed', 'true');
+        document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+    }
+
+    function setPreset(env) {
+        const p = PRESETS[env];
+        if (!p) return;
+        DIMS.forEach(d => { weights[d.id] = p[d.id]; });
+        renderSliders();
+        renderAll();
+    }
+
+    function renderSliders() {
+        const container = document.getElementById('sliders-container');
+        container.innerHTML = '';
+        DIMS.forEach(d => {
+            const val = weights[d.id];
+            container.innerHTML += `
+                <div>
+                    <div class="flex justify-between text-[11px] mb-1"><span class="text-[var(--text-main)] uppercase tracking-wide font-semibold">${d.label}</span><span class="text-[var(--text-muted)]">${val}/5</span></div>
+                    <input type="range" min="0" max="5" value="${val}" onchange="updateWeight('${d.id}', this.value)">
+                </div>
+            `;
+        });
+    }
+
+    function updateWeight(id, val) { weights[id] = parseInt(val); renderSliders(); renderAll(); }
+    
+    function calculateRelevance(inv) {
+        let score = 0, maxPossible = 0;
+        DIMS.forEach(d => { score += (weights[d.id] * inv.scores[d.id]); maxPossible += (weights[d.id] * 5); });
+        return maxPossible === 0 ? 0 : (score / maxPossible) * 100;
+    }
+
+    function getBand(score) {
+        if (score >= 65) return { label: 'High', class: 'badge-high' };
+        if (score >= 40) return { label: 'Medium', class: 'badge-medium' };
+        return { label: 'Low', class: 'badge-low' };
+    }
+
+    function getColor(category) {
+        if (category.includes('Solid')) return '#3b82f6';
+        if (category.includes('Gaseous')) return '#f97316';
+        if (category.includes('Detection')) return '#a855f7';
+        return '#64748b';
+    }
+
+    function renderAll() {
+        const flightOnly = document.getElementById('chkFlight').checked;
+        const groundOnly = document.getElementById('chkGround').checked;
+        const csvOnly = document.getElementById('chkCsvOnly').checked;
+        
+        let filtered = PSI_DB.filter(x => {
+            if (x.type === 'Flight' && !flightOnly) return false;
+            if (x.type === 'Ground' && !groundOnly) return false;
+            if (csvOnly && !x.csv) return false;
+            return true;
+        });
+
+        let ranked = filtered.map(inv => ({ ...inv, relevance: calculateRelevance(inv) }));
+        ranked.sort((a, b) => b.relevance - a.relevance);
+
+        renderScatterPlot(ranked);
+        renderTable(ranked);
+        renderCompare(ranked);
+    }
+
+    function renderScatterPlot(data) {
+        const container = document.getElementById('scatter-container');
+        const width = 800, height = 400, padding = { top: 20, right: 30, bottom: 40, left: 50 };
+        const innerW = width - padding.left - padding.right, innerH = height - padding.top - padding.bottom;
+        const scaleX = (val) => padding.left + (val / 100) * innerW;
+        const scaleY = (val) => height - padding.bottom - (val / 100) * innerH;
+
+        let svg = `<svg viewBox="0 0 ${width} ${height}" class="w-full h-full" style="min-width:500px;">`;
+        svg += `<line x1="${padding.left}" y1="${height - padding.bottom}" x2="${width - padding.right}" y2="${height - padding.bottom}" stroke="var(--border-color)" stroke-width="2"/>`;
+        svg += `<line x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${height - padding.bottom}" stroke="var(--border-color)" stroke-width="2"/>`;
+        
+        [0, 25, 50, 75, 100].forEach(val => {
+            const y = scaleY(val);
+            svg += `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="var(--border-color)" stroke-width="1" stroke-dasharray="4"/>`;
+            svg += `<text x="${padding.left - 10}" y="${y + 4}" fill="var(--text-muted)" font-size="11" text-anchor="end">${val}</text>`;
+        });
+
+        [0, 21, 40, 60, 80, 100].forEach(val => {
+            const x = scaleX(val);
+            svg += `<line x1="${x}" y1="${height - padding.bottom}" x2="${x}" y2="${height - padding.bottom + 5}" stroke="var(--border-color)" stroke-width="2"/>`;
+            svg += `<text x="${x}" y="${height - padding.bottom + 18}" fill="var(--text-muted)" font-size="11" text-anchor="middle">${val}% O₂</text>`;
+        });
+
+        svg += `<text x="${padding.left + innerW/2}" y="${height - 5}" fill="var(--text-muted)" font-size="12" font-weight="600" text-anchor="middle">Maximum Oxygen Tested</text>`;
+        svg += `<text x="-${padding.top + innerH/2}" y="15" fill="var(--text-muted)" font-size="12" font-weight="600" text-anchor="middle" transform="rotate(-90)">Computed Relevance Score</text>`;
+
+        data.forEach(d => {
+            const x = scaleX(d.o2Max), y = scaleY(d.relevance), r = 5 + (d.dataVol / 100) * 12;
+            const color = getColor(d.category), band = getBand(d.relevance);
+            const tt = `${d.acc} (${d.acronym})<br/><span style="color:var(--text-muted)">Rel: ${Math.round(d.relevance)}% (${band.label}) | O2: ${d.o2Range}</span>`;
+            
+            svg += `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" fill-opacity="0.6" stroke="${color}" stroke-width="1" class="bubble transition-all duration-200" onmouseover="showTooltip(evt, '${tt}')" onmouseout="hideTooltip()"></circle>`;
+            if (d.relevance >= 60 || d.acronym === 'Saffire-I') {
+                svg += `<text x="${x}" y="${y - r - 4}" fill="var(--text-main)" font-size="10" font-weight="500" text-anchor="middle">${d.acronym}</text>`;
+            }
+        });
+        container.innerHTML = svg + `</svg>`;
+    }
+
+    function renderTable(data) {
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = data.length ? '' : '<tr><td colspan="4" class="px-6 py-8 text-center text-[var(--text-muted)]">No investigations match the current filters.</td></tr>';
+        
+        data.forEach(d => {
+            const band = getBand(d.relevance);
+            tbody.innerHTML += `
+                <tr class="hover:bg-[var(--brand-light)] transition-colors">
+                    <td class="px-6 py-4"><span class="font-mono text-xs text-[var(--text-muted)] border border-[var(--border-color)] px-1 rounded mr-2 bg-[var(--bg-color)]">${d.acc}</span><span class="font-medium text-[var(--text-main)]">${d.acronym}</span></td>
+                    <td class="px-6 py-4 text-[var(--text-muted)]">${d.category} <span class="text-[10px] ml-2 px-1 rounded bg-[var(--bg-color)] border border-[var(--border-color)]">${d.type}</span></td>
+                    <td class="px-6 py-4 text-[var(--text-muted)]">${d.o2Range}</td>
+                    <td class="px-6 py-4 text-right"><span class="text-xs px-2.5 py-1 rounded-full font-medium ${band.class}">${Math.round(d.relevance)}% - ${band.label}</span></td>
+                </tr>
+            `;
+        });
+    }
+
+    function renderCompare(data) {
+        const sel = document.getElementById('compare-selector');
+        sel.innerHTML = data.map(d => `<button class="px-3 py-1 text-xs rounded-full border ${selectedForCompare.includes(d.acc) ? 'border-blue-500 bg-blue-50 text-blue-700 font-medium' : 'border-[var(--border-color)] bg-[var(--bg-color)] text-[var(--text-muted)]'} transition-colors" onclick="toggleCompare('${d.acc}')">${d.acronym}</button>`).join('');
+        
+        const container = document.getElementById('compare-table-container');
+        const comps = data.filter(d => selectedForCompare.includes(d.acc));
+        
+        if (!comps.length) { container.innerHTML = '<div class="text-center p-8 text-[var(--text-muted)]">Select investigations above to compare.</div>'; return; }
+
+        let html = `<table class="w-full text-sm text-left"><thead class="text-xs uppercase bg-[var(--bg-color)] text-[var(--text-muted)] border-b border-[var(--border-color)]"><tr><th class="px-4 py-3 w-32">Metric</th>`;
+        comps.forEach(c => html += `<th class="px-4 py-3">${c.acc}<br/><span class="text-[var(--text-main)]">${c.acronym}</span></th>`);
+        html += `</tr></thead><tbody class="divide-y divide-[var(--border-color)]">`;
+        
+        const metrics = [["Type", "type"], ["Category", "category"], ["Oxygen Limit", "o2Range"], ["Attached CSV", "csv"]];
+        metrics.forEach(m => {
+            html += `<tr><td class="px-4 py-3 font-medium">${m[0]}</td>`;
+            comps.forEach(c => html += `<td class="px-4 py-3 text-[var(--text-muted)]">${c[m[1]] || '—'}</td>`);
+            html += `</tr>`;
+        });
+        
+        html += `<tr><td class="px-4 py-3 font-medium bg-[var(--brand-light)]">Relevance Score</td>`;
+        comps.forEach(c => {
+            const b = getBand(c.relevance);
+            html += `<td class="px-4 py-3 bg-[var(--brand-light)]"><span class="text-xs px-2.5 py-1 rounded-full font-medium ${b.class}">${Math.round(c.relevance)}%</span></td>`;
+        });
+        html += `</tr></tbody></table>`;
+        container.innerHTML = html;
+    }
+
+    function toggleCompare(acc) {
+        if (selectedForCompare.includes(acc)) selectedForCompare = selectedForCompare.filter(a => a !== acc);
+        else { if(selectedForCompare.length >= 4) selectedForCompare.shift(); selectedForCompare.push(acc); }
+        renderAll();
+    }
+
+    function renderO2Map() {
+        const container = document.getElementById('o2-container');
+        const X = (p) => 45 + p * 6.1;
+        let t = "";
+        for (let p=0; p<=100; p+=10) { t += `<line class="ax" x1="${X(p)}" x2="${X(p)}" y1="54" y2="280"/><text class="m" x="${X(p)}" y="44" text-anchor="middle">${p}%</text>`; }
+        
+        const bars = [
+            ['PSI-10 Flame Design', 19.8, 85.0, '19.8–85.0% O₂'],
+            ['PSI-159 ACME CFI-G', 21.0, 85.0, 'Up to 85% O₂'],
+            ['PSI-20 ACME BRE', 21.0, 40.0, '21–40% O₂ (8.2–14.7 psia)'],
+            ['PSI-68 FLEX-2', 10.0, 40.0, '10–40% O₂'],
+            ['PSI-98 SAFFIRE I-III', 21.0, 22.1, '21.0–22.1% O₂']
+        ];
+        
+        const barSvg = bars.map((b,i) => {
+            const y = 160 + i*24, w = Math.max(X(b[2]) - X(b[1]), 6);
+            return `<rect x="${X(b[1])}" y="${y}" width="${w}" height="16" rx="4" style="fill:var(--brand-blue)"/><text x="${X(b[2])+8}" y="${y+12}" style="fill:var(--text-main); font-size:12px;">${b[0]}: ${b[3]}</text>`;
+        }).join('');
+
+        container.innerHTML = `<svg class="o2s" viewBox="0 0 840 300" role="img"><rect x="${X(30)}" y="58" width="${X(85)-X(30)}" height="222" style="fill:var(--brand-light); opacity:0.8"/>${t}
+            <text class="m" x="45" y="20">Oxygen mole fraction (% by volume) from NASA PSI records.</text>
+            <circle cx="${X(21)}" cy="86" r="6" style="fill:var(--text-main)"/><text x="${X(21)+12}" y="90" style="fill:var(--text-main); font-size:12px;">ISS / Earth sea level: 21% O₂</text>
+            <rect x="${X(26.5)}" y="114" width="${X(34)-X(26.5)}" height="18" rx="4" style="fill:#d1e7dd; stroke:#157347"/><text x="${X(34)+10}" y="127" style="fill:var(--text-main); font-size:12px;">NASA Exploration Atmospheres (BRE)</text>
+            <rect x="${X(30)}" y="140" width="${X(100)-X(30)}" height="18" rx="4" style="fill:transparent; stroke:var(--brand-blue); stroke-dasharray: 4"/><text x="${X(30)+8}" y="153" style="fill:var(--brand-blue); font-size:12px; font-weight:600;">Lunar habitat / rover target band: ≥30% O₂</text>
+            ${barSvg}</svg>`;
+    }
+
+    function renderDBOverview() {
+        const tbody = document.getElementById('db-overview-table');
+        const csvRecs = PSI_DB.filter(x => x.csv);
+        tbody.innerHTML = csvRecs.map(x => `<tr><td class="px-6 py-4 font-mono text-xs text-[var(--text-muted)]">${x.acc}</td><td class="px-6 py-4 font-medium text-[var(--text-main)]">${x.acronym}</td><td class="px-6 py-4 text-[var(--text-muted)] text-xs font-mono bg-[var(--bg-color)]">${x.csv}</td><td class="px-6 py-4 text-[var(--text-muted)]">${x.csv.includes('files') ? 'Files' : 'Rows'}</td></tr>`).join('');
+    }
+
+    function showTooltip(evt, content) {
+        const tt = document.getElementById('tooltip');
+        tt.innerHTML = content; tt.style.opacity = 1;
+        tt.style.left = (evt.pageX + 15) + 'px'; tt.style.top = (evt.pageY - 15) + 'px';
+    }
+    function hideTooltip() { document.getElementById('tooltip').style.opacity = 0; }
+
+
+    /* --- LLM GRAPH GENERATOR --- */
+    async function generateLLMGraph() {
+        const promptText = document.getElementById('llm-prompt').value;
+        if (!promptText.trim()) return;
+
+        const btn = document.getElementById('llm-btn');
+        const loading = document.getElementById('llm-loading');
+        const canvas = document.getElementById('llm-canvas');
+        const errorDiv = document.getElementById('llm-error');
+        
+        btn.disabled = true;
+        btn.classList.add('opacity-70');
+        loading.classList.remove('hidden');
+        loading.classList.add('flex');
+        canvas.classList.add('hidden');
+        errorDiv.classList.add('hidden');
+
+        // Destroy old chart if exists
+        if (llmChartInstance) {
+            llmChartInstance.destroy();
+            llmChartInstance = null;
+        }
+
+        // Prepare minimalist context to avoid token bloat
+        const dbContext = PSI_DB.map(d => ({ id: d.acc, name: d.acronym, cat: d.category, o2Max: d.o2Max }));
+
+        const systemPrompt = `You are a data visualization expert.
+Given this dataset representing NASA combustion experiments: ${JSON.stringify(dbContext)}
+User request: "${promptText}"
+Generate a Chart.js configuration object (valid JSON only) to visualize this request.
+Do NOT include markdown formatting, backticks, or explanations. Just output the raw JSON object that starts with { and ends with }.
+The JSON must have a 'type' (e.g. 'bar', 'pie', 'scatter'), 'data' (with labels and datasets), and 'options' (ensure responsive: true, maintainAspectRatio: false).
+Ensure colors look professional (use hex codes). Give the dataset a clear label.`;
+
+        const payload = {
+            contents: [{ parts: [{ text: systemPrompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+        };
+
+        // =======================================================================
+        // 🔑 IMPORTANT: ADD YOUR GEMINI API KEY HERE IF HOSTING OUTSIDE THIS APP
+        // =======================================================================
+        const apiKey = ""; 
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const result = await response.json();
+            
+            if (result.candidates && result.candidates.length > 0) {
+                let jsonText = result.candidates[0].content.parts[0].text;
+                // Clean up in case the LLM ignored the "no markdown" instruction
+                jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+                
+                const chartConfig = JSON.parse(jsonText);
+                
+                // Force options for layout
+                chartConfig.options = chartConfig.options || {};
+                chartConfig.options.responsive = true;
+                chartConfig.options.maintainAspectRatio = false;
+
+                loading.classList.add('hidden');
+                loading.classList.remove('flex');
+                canvas.classList.remove('hidden');
+
+                const ctx = document.getElementById('llm-canvas').getContext('2d');
+                llmChartInstance = new Chart(ctx, chartConfig);
+            } else {
+                throw new Error("No candidates returned from Gemini API.");
+            }
+        } catch (error) {
+            console.error("LLM Graph Error:", error);
+            loading.classList.add('hidden');
+            loading.classList.remove('flex');
+            errorDiv.classList.remove('hidden');
+            errorDiv.innerText = "Failed to generate graph. Please ensure the prompt is clear and try again.";
+        } finally {
+            btn.disabled = false;
+            btn.classList.remove('opacity-70');
+        }
+    }
+
+    /* --- LLM CHATBOT (RAG) --- */
+    let chatHistoryForAPI = [];
+
+    async function sendChatMessage() {
+        const inputEl = document.getElementById('chat-input');
+        const message = inputEl.value.trim();
+        if (!message) return;
+
+        const messagesContainer = document.getElementById('chat-messages');
+        const btn = document.getElementById('chat-send-btn');
+        
+        // 1. Add User message to UI
+        appendMessage(message, 'user');
+        inputEl.value = '';
+        btn.disabled = true;
+
+        // 2. Add loading bubble
+        const loadingId = 'loading-' + Date.now();
+        messagesContainer.insertAdjacentHTML('beforeend', `
+            <div id="${loadingId}" class="self-start bg-[var(--panel-bg)] border border-[var(--border-color)] text-[var(--text-muted)] rounded-2xl rounded-tl-none py-2.5 px-4 text-sm shadow-sm flex items-center gap-2">
+                <div class="loader w-4 h-4 border-2 border-t-purple-500"></div> <span>Searching database...</span>
+            </div>
+        `);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        // 3. Prepare RAG context (injecting the currently loaded DB)
+        const systemPrompt = `You are a NASA Fire Safety expert AI assistant. 
+You answer questions based ONLY on this provided NASA PSI Combustion dataset:
+${JSON.stringify(PSI_DB)}
+Keep answers concise, accurate, and directly address the user's question. If the data doesn't contain the answer, say so. Format nicely using markdown bolding where helpful. Note that no partial gravity (lunar/mars) data exists in PSI.`;
+
+        chatHistoryForAPI.push({ role: "user", parts: [{ text: message }] });
+
+        const payload = {
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: chatHistoryForAPI
+        };
+
+        // =======================================================================
+        // 🔑 GEMINI API KEY USED FOR BOTH GRAPH GENERATION AND CHAT RAG
+        // =======================================================================
+        const apiKey = ""; 
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const result = await response.json();
+            document.getElementById(loadingId).remove();
+            
+            if (result.candidates && result.candidates.length > 0) {
+                const reply = result.candidates[0].content.parts[0].text;
+                chatHistoryForAPI.push({ role: "model", parts: [{ text: reply }] });
+                appendMessage(reply, 'model');
+            } else {
+                throw new Error("No response from API");
+            }
+        } catch (error) {
+            console.error("Chat Error:", error);
+            document.getElementById(loadingId).remove();
+            appendMessage("⚠️ Failed to connect to the LLM. Did you forget to add your API key in the source code?", 'error');
+            chatHistoryForAPI.pop(); // remove failed user message from history
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function appendMessage(text, role) {
+        const container = document.getElementById('chat-messages');
+        let html = '';
+        
+        // Very basic markdown formatting for bold text
+        const formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>');
+
+        if (role === 'user') {
+            html = `<div class="self-end bg-purple-600 text-white rounded-2xl rounded-tr-none py-2 px-4 text-sm max-w-[85%] shadow-sm">${formattedText}</div>`;
+        } else if (role === 'error') {
+            html = `<div class="self-start bg-red-50 border border-red-200 text-red-600 rounded-2xl rounded-tl-none py-2 px-4 text-sm max-w-[85%] shadow-sm">${formattedText}</div>`;
+        } else {
+            html = `<div class="self-start bg-[var(--panel-bg)] border border-[var(--border-color)] text-[var(--text-main)] rounded-2xl rounded-tl-none py-2 px-4 text-sm max-w-[85%] shadow-sm leading-relaxed">${formattedText}</div>`;
+        }
+        
+        container.insertAdjacentHTML('beforeend', html);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    window.onload = init;
+</script>
+</body>
+</html>
